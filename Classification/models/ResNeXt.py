@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchinfo import summary
 
 
-class ResNet(nn.Module):
+class ResNeXt(nn.Module):
     def __init__(self, block, block_list: list, num_classes: int = 1000, zero_init_residual: bool = True):
         """
         Args:
@@ -23,13 +23,13 @@ class ResNet(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         )
 
-        self.conv2 = self._make_layers(block, 64, block_list[0], stride=1)
-        self.conv3 = self._make_layers(block, 128, block_list[1],
+        self.conv2 = self._make_layers(block, 128, block_list[0], stride=1)
+        self.conv3 = self._make_layers(block, 256, block_list[1],
                                        stride=2)  # 각 layer 첫번째 block의 1x1은 stride=2로 downsampling
-        self.conv4 = self._make_layers(block, 256, block_list[2], stride=2)
-        self.conv5 = self._make_layers(block, 512, block_list[3], stride=2)
+        self.conv4 = self._make_layers(block, 512, block_list[2], stride=2)
+        self.conv5 = self._make_layers(block, 1024, block_list[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc = nn.Linear(1024 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -73,37 +73,9 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
 
-class BasicBlock(nn.Module):
-    expansion = 1  # Basic or BottleNeck 구분 짓는 용도 및 out_channel 조절
-
-    def __init__(self, in_channels, inner_channels, stride=1, downsample=None):
-        # downsample: 채널 수 조절 혹은 이미지 사이즈 조절 시 사용
-        super().__init__()
-        self.residual = nn.Sequential(
-            nn.Conv2d(in_channels, inner_channels, kernel_size=3, stride=stride, padding=1, bias=False),
-            nn.BatchNorm2d(inner_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(inner_channels, inner_channels * self.expansion, kernel_size=3, stride=stride, padding=1,
-                      bias=False),
-            nn.BatchNorm2d(inner_channels * self.expansion)
-        )
-        self.downsample = downsample
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        residual = self.residual(x)
-
-        if self.downsample is not None:
-            shortcut = self.downsample(x)
-        else:
-            shortcut = x
-
-        out = residual + shortcut
-        return self.relu(out)
-
-
 class BottleNeckBlock(nn.Module):
-    expansion = 4  # Basic or BottleNeck 구분 짓는 용도 및 out_channel 조절
+    # ResNext는 grouped conv로 파라미터를 줄이되, 그만큼 매 stage의 input channel도 늘림
+    expansion = 2  # Basic or BottleNeck 구분 짓는 용도 및 out_channel 조절
 
     def __init__(self, in_channels, inner_channels, stride=1, downsample=None):
         # downsample: 채널 수 조절 혹은 이미지 사이즈 조절 시 사용
@@ -112,7 +84,8 @@ class BottleNeckBlock(nn.Module):
             nn.Conv2d(in_channels, inner_channels, kernel_size=1, stride=1, bias=False),
             nn.BatchNorm2d(inner_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(inner_channels, inner_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+            # grouped conv 적용
+            nn.Conv2d(inner_channels, inner_channels, kernel_size=3, stride=stride, padding=1, bias=False, groups=32),
             nn.BatchNorm2d(inner_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(inner_channels, inner_channels * self.expansion, kernel_size=1, bias=False),
@@ -133,6 +106,14 @@ class BottleNeckBlock(nn.Module):
         return self.relu(out)
 
 
+def ResNext50():
+    return ResNeXt(BottleNeckBlock, [3, 4, 6, 3])
+
+
+def ResNext101():
+    return ResNeXt(BottleNeckBlock, [3, 4, 23, 3])
+
+
 if __name__ == '__main__':
-    model = ResNet(BottleNeckBlock, [3, 4, 6, 3])
+    model = ResNext50()
     summary(model, input_size=(2, 3, 224, 224))
