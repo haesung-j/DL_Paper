@@ -8,6 +8,7 @@ from load_dataset import load_dataset
 from train import train_model, test_model
 from models.VGGnet import VGGnet
 from models.InceptionNet import InceptionNet
+from models.ResNet import ResNet
 
 # data
 DATASET = 'CIFAR10'

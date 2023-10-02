@@ -130,3 +130,4 @@ if __name__ == '__main__':
     summary(m, input_size=(1, 3, 224, 224))
     # print(m.__class__.__name__ == 'InceptionNet')
     # print(m(x).size())
+    
