@@ -165,3 +165,7 @@ cython_debug/
 /Recsys/
 /Classification/코드/
 /Classification/lightning_logs/
+
+/NLP/transformer/save/
+/NLP/transformer/data/
+/.gitmessage.txt
